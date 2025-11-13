@@ -3,13 +3,14 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
+import sqlmodel
 
+import reflex as rx
 
-# NEW: Model for storing historical sensor readings
 class SocketDataHistory(rx.Model, table=True):
-    id: Optional[int] = rx.Field(default=None, primary_key=True)
-    socket_id: int = rx.Field(index=True)
-    timestamp: datetime = rx.Field(default_factory=datetime.now, index=True)
+    id: Optional[int] = sqlmodel.Field(default=None, primary_key=True)
+    socket_id: int = sqlmodel.Field(index=True)
+    timestamp: datetime = sqlmodel.Field(default_factory=datetime.now, index=True)
     temperature: float = 0.0
     current: float = 0.0
 
@@ -32,12 +33,10 @@ class ThermalLimits:
     max_current: float = 15.0  # Amperes
 
 
-@dataclass
-class ThermalEvent:
+class ThermalEvent(rx.Model, table=True):
     """Thermal event log entry."""
-    id: Optional[int] = rx.Field(default=None, primary_key=True)
-    socket_id: int = rx.Field(index=True)
+    id: Optional[int] = sqlmodel.Field(default=None, primary_key=True)  # <--- CHANGED
+    socket_id: int = sqlmodel.Field(index=True)  # <--- CHANGED
     event_type: str
-    timestamp: datetime = rx.Field(default_factory=datetime.now)
+    timestamp: datetime = sqlmodel.Field(default_factory=datetime.now)  # <--- CHANGED
     message: str = ""
-

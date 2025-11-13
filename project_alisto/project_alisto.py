@@ -1,5 +1,3 @@
-"""Project Alisto - Automated Thermal Control System."""
-
 import asyncio
 import re
 import time
@@ -19,7 +17,7 @@ from project_alisto.config import (
     MQTT_TOPIC_SOCKET_STATUS,
     NUM_SOCKETS,
 )
-from project_alisto.models import SocketData, ThermalEvent, ThermalLimits
+from project_alisto.models import SocketData, ThermalEvent, ThermalLimits, SocketDataHistory
 from project_alisto.mqtt_client import MQTTClient
 from rxconfig import config
 
@@ -43,17 +41,6 @@ class State(rx.State):
             return session.query(ThermalEvent).order_by(
                 ThermalEvent.timestamp.desc()
             ).limit(50).all()
-
-    @rx.var
-    def thermal_events_count(self) -> int:
-        """Get the count of thermal events."""
-        # This now uses the computed var
-        return len(self.thermal_events)
-
-    @rx.var
-    def has_thermal_events(self) -> bool:
-        """Check if there are any thermal events."""
-        return self.thermal_events_count > 0
     
     # MQTT connection status
     mqtt_connected: bool = False
