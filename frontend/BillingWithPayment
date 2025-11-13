@@ -1,0 +1,380 @@
+import { useState } from 'react';
+import { Receipt, TrendingUp, Calendar, Zap, DollarSign, BarChart3, CreditCard, Wallet, Smartphone, Building2, X } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
+import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { toast } from 'sonner@2.0.3';
+
+const monthlyData = [
+  { month: 'Jan', consumption: 650, cost: 7475 },
+  { month: 'Feb', consumption: 620, cost: 7130 },
+  { month: 'Mar', consumption: 680, cost: 7820 },
+  { month: 'Apr', consumption: 720, cost: 8280 },
+  { month: 'May', consumption: 750, cost: 8625 },
+  { month: 'Jun', consumption: 700, cost: 8050 },
+];
+
+const applianceBreakdown = [
+  { name: 'Air Conditioner', consumption: 320, cost: 3680, percentage: 42.7 },
+  { name: 'Refrigerator', consumption: 180, cost: 2070, percentage: 24.0 },
+  { name: 'Washing Machine', consumption: 85, cost: 977.5, percentage: 11.3 },
+  { name: 'Electric Kettle', consumption: 45, cost: 517.5, percentage: 6.0 },
+  { name: 'Microwave', consumption: 42, cost: 483, percentage: 5.6 },
+  { name: 'Laptop Charger', consumption: 28, cost: 322, percentage: 3.7 },
+  { name: 'Others', consumption: 50, cost: 575, percentage: 6.7 },
+];
+
+const COLORS = ['#ea580c', '#f97316', '#fb923c', '#fdba74', '#fed7aa', '#ffedd5', '#fff7ed'];
+
+const paymentMethods = [
+  { id: 'gcash', name: 'GCash', icon: Smartphone, description: 'Pay via GCash mobile wallet' },
+  { id: 'paymaya', name: 'PayMaya', icon: Smartphone, description: 'Pay via PayMaya' },
+  { id: 'card', name: 'Credit/Debit Card', icon: CreditCard, description: 'Visa, Mastercard, JCB' },
+  { id: 'bank', name: 'Online Banking', icon: Building2, description: 'BDO, BPI, Metrobank, etc.' },
+  { id: 'otc', name: 'Over the Counter', icon: Wallet, description: '7-Eleven, MLhuillier, etc.' },
+];
+
+interface BillingProps {
+  darkMode: boolean;
+}
+
+export function Billing({ darkMode }: BillingProps) {
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState('gcash');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  
+  const currentMonthConsumption = 750;
+  const currentMonthCost = currentMonthConsumption * 11.5;
+  const estimatedMonthlyBudget = 8000;
+  const percentageUsed = (currentMonthCost / estimatedMonthlyBudget) * 100;
+  const daysInMonth = 30;
+  const currentDay = 24;
+  const projectedConsumption = (currentMonthConsumption / currentDay) * daysInMonth;
+  const projectedCost = projectedConsumption * 11.5;
+
+  const handlePayment = () => {
+    const amount = parseFloat(paymentAmount) || currentMonthCost;
+    toast.success(`Payment of ₱${amount.toFixed(2)} initiated via ${paymentMethods.find(p => p.id === selectedPayment)?.name}!`);
+    setIsPaymentOpen(false);
+    setPaymentAmount('');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'border-orange-200 bg-gradient-to-br from-white to-orange-50/50'}`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Current Bill</CardTitle>
+              <Receipt className="h-4 w-4 text-orange-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl text-orange-600">₱{currentMonthCost.toFixed(2)}</div>
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{currentMonthConsumption} kWh consumed</p>
+          </CardContent>
+        </Card>
+
+        <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'border-orange-200 bg-gradient-to-br from-white to-orange-50/50'}`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Projected Bill</CardTitle>
+              <TrendingUp className="h-4 w-4 text-orange-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl text-orange-600">₱{projectedCost.toFixed(2)}</div>
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Est. {projectedConsumption.toFixed(0)} kWh/month</p>
+          </CardContent>
+        </Card>
+
+        <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'border-orange-200 bg-gradient-to-br from-white to-orange-50/50'}`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Meralco Rate</CardTitle>
+              <Zap className="h-4 w-4 text-orange-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl text-orange-600">₱11.50</div>
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>per kWh</p>
+          </CardContent>
+        </Card>
+
+        <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'border-orange-200 bg-gradient-to-br from-white to-orange-50/50'}`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Budget Status</CardTitle>
+              <DollarSign className="h-4 w-4 text-orange-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl text-orange-600">{percentageUsed.toFixed(0)}%</div>
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>of ₱{estimatedMonthlyBudget} budget</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Pay Bill Button */}
+      <Card className={`${darkMode ? 'bg-gradient-to-r from-orange-900 to-orange-800 border-orange-700' : 'bg-gradient-to-r from-orange-500 to-orange-600 border-orange-400'} border-2`}>
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-white">
+              <h3 className="text-xl">Ready to Pay Your Bill?</h3>
+              <p className={`text-sm mt-1 ${darkMode ? 'text-orange-200' : 'text-orange-100'}`}>
+                Current amount due: ₱{currentMonthCost.toFixed(2)}
+              </p>
+            </div>
+            <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
+              <DialogTrigger asChild>
+                <Button size="lg" className={`${darkMode ? 'bg-white text-orange-900 hover:bg-gray-100' : 'bg-white text-orange-600 hover:bg-orange-50'}`}>
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Pay Now
+                </Button>
+              </DialogTrigger>
+              <DialogContent className={`${darkMode ? 'bg-gray-800 border-gray-700 text-white' : ''} max-w-2xl`}>
+                <DialogHeader>
+                  <DialogTitle className={darkMode ? 'text-white' : ''}>Pay Your Electricity Bill</DialogTitle>
+                  <DialogDescription className={darkMode ? 'text-gray-400' : ''}>
+                    Choose your preferred payment method
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                  {/* Amount */}
+                  <div className="space-y-2">
+                    <Label htmlFor="amount" className={darkMode ? 'text-gray-300' : ''}>Payment Amount</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      placeholder={currentMonthCost.toFixed(2)}
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}
+                    />
+                    <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Leave blank to pay full amount: ₱{currentMonthCost.toFixed(2)}
+                    </p>
+                  </div>
+
+                  {/* Payment Methods */}
+                  <div className="space-y-3">
+                    <Label className={darkMode ? 'text-gray-300' : ''}>Payment Method</Label>
+                    <RadioGroup value={selectedPayment} onValueChange={setSelectedPayment}>
+                      {paymentMethods.map((method) => {
+                        const Icon = method.icon;
+                        return (
+                          <div
+                            key={method.id}
+                            className={`flex items-center space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                              selectedPayment === method.id
+                                ? darkMode ? 'border-orange-500 bg-orange-900/20' : 'border-orange-500 bg-orange-50'
+                                : darkMode ? 'border-gray-600 bg-gray-700 hover:border-gray-500' : 'border-gray-200 hover:border-orange-200'
+                            }`}
+                            onClick={() => setSelectedPayment(method.id)}
+                          >
+                            <RadioGroupItem value={method.id} id={method.id} />
+                            <Icon className="h-6 w-6 text-orange-500" />
+                            <div className="flex-1">
+                              <Label htmlFor={method.id} className={`cursor-pointer ${darkMode ? 'text-white' : ''}`}>
+                                {method.name}
+                              </Label>
+                              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {method.description}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </RadioGroup>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      variant="outline"
+                      className={`flex-1 ${darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}`}
+                      onClick={() => setIsPaymentOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                      onClick={handlePayment}
+                    >
+                      Proceed to Payment
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Budget Progress */}
+      <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'border-orange-200'}`}>
+        <CardHeader>
+          <CardTitle className={`flex items-center gap-2 ${darkMode ? 'text-white' : ''}`}>
+            <Calendar className="h-5 w-5 text-orange-500" />
+            Monthly Budget Tracker
+          </CardTitle>
+          <CardDescription className={darkMode ? 'text-gray-400' : ''}>Day {currentDay} of {daysInMonth}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Current Usage</span>
+              <span className="text-orange-600">₱{currentMonthCost.toFixed(2)} / ₱{estimatedMonthlyBudget}</span>
+            </div>
+            <Progress value={percentageUsed} className="h-3" />
+          </div>
+
+          {percentageUsed > 80 && (
+            <div className="p-3 bg-orange-100 border border-orange-300 rounded-lg">
+              <p className="text-sm text-orange-800">
+                ⚠️ You've used {percentageUsed.toFixed(0)}% of your monthly budget. Consider reducing usage to stay within budget.
+              </p>
+            </div>
+          )}
+
+          {projectedCost > estimatedMonthlyBudget && (
+            <div className="p-3 bg-red-100 border border-red-300 rounded-lg">
+              <p className="text-sm text-red-800">
+                🚨 Projected bill (₱{projectedCost.toFixed(2)}) exceeds your budget by ₱{(projectedCost - estimatedMonthlyBudget).toFixed(2)}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Monthly Trend */}
+        <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'border-orange-200'}`}>
+          <CardHeader>
+            <CardTitle className={`flex items-center gap-2 ${darkMode ? 'text-white' : ''}`}>
+              <BarChart3 className="h-5 w-5 text-orange-500" />
+              6-Month Consumption Trend
+            </CardTitle>
+            <CardDescription className={darkMode ? 'text-gray-400' : ''}>Historical electricity usage and costs</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#fed7aa'} />
+                <XAxis 
+                  dataKey="month" 
+                  stroke={darkMode ? '#9ca3af' : '#9a3412'}
+                  style={{ fontSize: '12px' }}
+                />
+                <YAxis 
+                  stroke={darkMode ? '#9ca3af' : '#ea580c'}
+                  style={{ fontSize: '12px' }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: darkMode ? '#1f2937' : '#fff7ed', 
+                    border: `1px solid ${darkMode ? '#374151' : '#fed7aa'}`,
+                    borderRadius: '8px',
+                    color: darkMode ? '#fff' : '#000'
+                  }}
+                />
+                <Bar dataKey="consumption" fill="#ea580c" name="kWh" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Appliance Breakdown */}
+        <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'border-orange-200'}`}>
+          <CardHeader>
+            <CardTitle className={`flex items-center gap-2 ${darkMode ? 'text-white' : ''}`}>
+              <Zap className="h-5 w-5 text-orange-500" />
+              Consumption by Appliance
+            </CardTitle>
+            <CardDescription className={darkMode ? 'text-gray-400' : ''}>Current month breakdown</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={applianceBreakdown}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percentage }) => `${name} ${percentage}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="consumption"
+                >
+                  {applianceBreakdown.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: darkMode ? '#1f2937' : '#fff7ed', 
+                    border: `1px solid ${darkMode ? '#374151' : '#fed7aa'}`,
+                    borderRadius: '8px',
+                    color: darkMode ? '#fff' : '#000'
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Detailed Appliance Breakdown */}
+      <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'border-orange-200'}`}>
+        <CardHeader>
+          <CardTitle className={darkMode ? 'text-white' : ''}>Detailed Cost Breakdown</CardTitle>
+          <CardDescription className={darkMode ? 'text-gray-400' : ''}>Individual appliance consumption and costs</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {applianceBreakdown.map((appliance, index) => (
+              <div key={appliance.name} className={`flex items-center gap-4 p-3 rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gradient-to-r from-orange-50 to-white border-orange-100'}`}>
+                <div 
+                  className="w-3 h-3 rounded-full flex-shrink-0" 
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                ></div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-sm ${darkMode ? 'text-white' : ''}`}>{appliance.name}</span>
+                    <Badge variant="secondary" className="text-xs">{appliance.percentage}%</Badge>
+                  </div>
+                  <div className={`flex items-center justify-between text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <span>{appliance.consumption} kWh</span>
+                    <span className="text-orange-600">₱{appliance.cost.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Savings Tips */}
+      <Card className={`${darkMode ? 'bg-gradient-to-br from-gray-800 to-gray-700 border-gray-600' : 'border-orange-200 bg-gradient-to-br from-orange-50 to-white'}`}>
+        <CardHeader>
+          <CardTitle className={`text-base ${darkMode ? 'text-white' : ''}`}>💡 Energy Saving Tips</CardTitle>
+        </CardHeader>
+        <CardContent className={`space-y-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          <p>• Your Air Conditioner uses 42.7% of total energy. Consider setting it to 24-26°C for optimal efficiency.</p>
+          <p>• Unplug appliances when not in use to reduce standby power consumption.</p>
+          <p>• Your current usage suggests you may exceed your budget. Consider reducing AC usage by 2 hours/day to save ≈₱300/month.</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+
