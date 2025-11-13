@@ -8,6 +8,8 @@ from typing import Dict, List
 
 import reflex as rx
 
+from .logic import handle_socket_status
+
 from project_alisto.config import (
     COOLING_PERIOD_MINUTES,
     DEFAULT_MAX_CURRENT,
@@ -150,51 +152,16 @@ class State(rx.State):
         socket.current = data.get("current", socket.current)
         socket.is_on = data.get("is_on", socket.is_on)
 
-    def process_socket_status(self, socket_id: int, status: dict):
-        """Process hardware status events from MQTT."""
-        socket = self.sockets[socket_id]
-        status_type = status.get("status", "")
-        cooling_until = status.get("cooling_until")
-        
-        # Update cooling status from hardware
-        if status_type == "THERMAL_SHUTDOWN":
-            socket.is_cooling = True
-            socket.is_on = False
-            if cooling_until:
-                socket.cooling_until = cooling_until
-            else:
-                # If no timestamp provided, calculate it (5 minutes from now)
-                socket.cooling_until = time.time() + (COOLING_PERIOD_MINUTES * 60)
-            
-            # Add thermal event
-            self.add_thermal_event(
-                socket_id=socket_id,
-                event_type="THERMAL_SHUTDOWN",
-                message=f"Socket {socket_id} automatically shut down due to thermal limit"
-            )
-            
-            # Send notification
-            self.send_push_notification(
-                title="Thermal Shutdown",
-                body=f"Socket {socket_id} has been automatically shut down due to overheating"
-            )
-            
-        elif status_type == "COOLING":
-            socket.is_cooling = True
-            if cooling_until:
-                socket.cooling_until = cooling_until
-            
-        elif status_type == "NORMAL":
-            socket.is_cooling = False
-            socket.cooling_until = None
-            
-            # Check if cooling period just ended
-            if socket.cooling_until is None:
-                self.add_thermal_event(
-                    socket_id=socket_id,
-                    event_type="COOLING_ENDED",
-                    message=f"Socket {socket_id} cooling period ended"
-                )
+    def process_socket_status(self, socket_id: int, message: dict):
+        if socket_id not in self.sockets:
+            return
+
+        current_socket = self.sockets[socket_id]
+        updated_socket, new_event = handle_socket_status(current_socket, message)
+
+        self.sockets[socket_id] = updated_socket
+        if new_event:
+            self.thermal_events.append(new_event)
 
     def toggle_socket(self, socket_id: int):
         """Send on/off command via MQTT (hardware enforces cooling period)."""
