@@ -1,9 +1,9 @@
 """Project Alisto - Automated Thermal Control System."""
 
-import json
+import asyncio
 import re
 import time
-from datetime import datetime
+from dataclasses import replace
 from typing import Dict, List
 
 import reflex as rx
@@ -49,6 +49,9 @@ class State(rx.State):
     # Notification permission status
     notification_permission_granted: bool = False
 
+    # Background monitoring flag
+    cooling_monitor_running: bool = False
+
     @rx.var
     def thermal_events_count(self) -> int:
         """Get the count of thermal events."""
@@ -66,15 +69,15 @@ class State(rx.State):
             for socket_id in range(1, NUM_SOCKETS + 1):
                 self.sockets[socket_id] = SocketData(socket_id=socket_id)
         
-        # Initial check (periodic checks are handled by rx.interval)
-        yield self.check_cooling_periods()
+        # Start background monitoring tasks
+        yield self.monitor_cooling()
+        yield self.drain_mqtt_queue()
 
     def _mqtt_message_handler(self, topic: str, payload: dict):
         """MQTT message callback (called from background thread)."""
         # Add message to queue for processing by Reflex event handler
         self.message_queue.append((topic, payload))
-        # Trigger processing of message queue
-        self.process_message_queue()
+        # Do NOT call state-mutating handlers here; the queue will be drained by a background event
 
     def connect_mqtt(self):
         """Initialize and connect to MQTT broker."""
@@ -89,25 +92,38 @@ class State(rx.State):
                     data_topic = MQTT_TOPIC_SOCKET_DATA.format(socket_id=socket_id)
                     status_topic = MQTT_TOPIC_SOCKET_STATUS.format(socket_id=socket_id)
                     self._mqtt_client.subscribe(data_topic)
-                    self._mqtt_client.subscribe(status_topic)
-                
+                self._mqtt_client.subscribe(status_topic)
+
                 # Update connection status after a brief delay
                 yield rx.sleep(0.5)
                 self.mqtt_connected = self._mqtt_client.is_connected()
+                # Ensure background monitoring is running
+                yield self.monitor_cooling()
+                yield self.drain_mqtt_queue()
             else:
                 self.mqtt_connected = False
         else:
             self.mqtt_connected = True
 
-    def process_message_queue(self):
-        """Reflex event handler to process queued MQTT messages."""
-        if not self.message_queue:
-            return
-        
-        # Process all messages in queue
-        while self.message_queue:
-            topic, payload = self.message_queue.pop(0)
-            self.handle_mqtt_message(topic, payload)
+    @rx.event(background=True)
+    async def drain_mqtt_queue(self):
+        """Background task to drain MQTT message queue safely and update state."""
+        while True:
+            async with self:
+                if self.message_queue:
+                    # Swap queues to minimize time under lock
+                    queue_snapshot = self.message_queue[:]
+                    self.message_queue = []
+                else:
+                    queue_snapshot = []
+
+            # Process outside of state lock, but call state handlers within event context
+            for topic, payload in queue_snapshot:
+                # Re-enter state to mutate
+                async with self:
+                    self.handle_mqtt_message(topic, payload)
+
+            await asyncio.sleep(0.1)
 
     def handle_mqtt_message(self, topic: str, payload: dict):
         """Process a single MQTT message (Reflex event handler)."""
@@ -210,37 +226,42 @@ class State(rx.State):
                 message=f"Socket {socket_id} manually shut down by user"
             )
 
-    def update_cooling_status(self):
-        """Update UI state based on hardware-reported cooling status."""
-        # This is called periodically to refresh cooling countdown
-        # The actual cooling status comes from hardware via MQTT
-        pass
+    @rx.event(background=True)
+    async def monitor_cooling(self):
+        """Background task to refresh cooling countdown UI and connection status."""
+        async with self:
+            if self.cooling_monitor_running:
+                return
+            self.cooling_monitor_running = True
 
-    def check_cooling_periods(self):
-        """Periodic check to refresh cooling countdown UI and MQTT connection status."""
-        # Update connection status
-        if self._mqtt_client:
-            self.mqtt_connected = self._mqtt_client.is_connected()
-            if not self.mqtt_connected:
-                # Try to reconnect
-                yield self.connect_mqtt()
-        
-        # Update cooling time remaining for all sockets
-        for socket_id, socket in self.sockets.items():
-            if socket.is_cooling and socket.cooling_until is not None:
-                remaining = socket.cooling_until - time.time()
-                if remaining <= 0:
-                    socket.cooling_time_remaining = "Ready"
-                else:
-                    minutes = int(remaining // 60)
-                    seconds = int(remaining % 60)
-                    socket.cooling_time_remaining = f"{minutes}:{seconds:02d}"
-            else:
-                socket.cooling_time_remaining = ""
-        
-        # Schedule next check (recursive pattern for periodic execution)
-        yield rx.sleep(1.5)
-        yield self.check_cooling_periods()
+        try:
+            while True:
+                async with self:
+                    connected = self._mqtt_client.is_connected() if self._mqtt_client else False
+                    if self.mqtt_connected != connected:
+                        self.mqtt_connected = connected
+
+                    sockets = self.sockets.copy()
+                    for socket_id, socket in sockets.items():
+                        if socket.is_cooling and socket.cooling_until is not None:
+                            remaining = socket.cooling_until - time.time()
+                            if remaining <= 0:
+                                updated_socket = replace(socket, cooling_time_remaining="Ready")
+                            else:
+                                minutes = int(remaining // 60)
+                                seconds = int(remaining % 60)
+                                formatted = f"{minutes}:{seconds:02d}"
+                                updated_socket = replace(socket, cooling_time_remaining=formatted)
+                        else:
+                            updated_socket = replace(socket, cooling_time_remaining="")
+                        sockets[socket_id] = updated_socket
+
+                    self.sockets = sockets
+
+                await asyncio.sleep(1.5)
+        finally:
+            async with self:
+                self.cooling_monitor_running = False
 
     def add_thermal_event(self, socket_id: int, event_type: str, message: str = ""):
         """Log thermal events."""
@@ -288,23 +309,6 @@ class State(rx.State):
         }}
         """
         yield rx.call_script(script)
-
-    def get_cooling_time_remaining(self, socket_id: int) -> str:
-        """Get remaining cooling time as formatted string."""
-        if socket_id not in self.sockets:
-            return ""
-        
-        socket = self.sockets[socket_id]
-        if not socket.is_cooling or socket.cooling_until is None:
-            return ""
-        
-        remaining = socket.cooling_until - time.time()
-        if remaining <= 0:
-            return "Ready"
-        
-        minutes = int(remaining // 60)
-        seconds = int(remaining % 60)
-        return f"{minutes}:{seconds:02d}"
 
     def get_socket_status_color(self, socket_id: int) -> str:
         """Get status color for socket based on temperature/current."""
