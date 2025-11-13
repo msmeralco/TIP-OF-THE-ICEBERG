@@ -15,37 +15,6 @@ struct GridItem: Identifiable {
 }
 
 
-struct LazyVGridTemplateView: View {
-    private var gridItems: [GridItem] = [
-        GridItem(text: "Title", color: .accentColor),
-        GridItem(text: "Title", color: .accentColor),
-        GridItem(text: "Title", color: .accentColor)
-    ]
-
-    // Sample data for the grid
-    let data: [GridItem] = [
-        GridItem(text: "Item 1", color: .red),
-        GridItem(text: "Item 2", color: .green),
-        GridItem(text: "Item 3", color: .blue),
-        GridItem(text: "Item 4", color: .orange),
-        GridItem(text: "Item 5", color: .purple),
-        GridItem(text: "Item 6", color: .yellow)
-    ]
-
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                LazyVGrid(columns: gridItems as! [GridItem] as! [GridItem], spacing: 20) {
-                    ForEach(data) { item in
-                        GridCellView(item: item)
-                    }
-                }
-                .padding()
-            }
-        }
-    }
-}
-
 struct GridCellView: View {
     let item: GridItem
 
