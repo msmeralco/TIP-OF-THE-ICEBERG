@@ -35,9 +35,25 @@ class State(rx.State):
         max_temperature=DEFAULT_MAX_TEMPERATURE,
         max_current=DEFAULT_MAX_CURRENT
     )
-    
-    # Thermal event history
-    thermal_events: List[ThermalEvent] = []
+
+    @rx.var
+    def thermal_events(self) -> list[ThermalEvent]:
+        """Get all thermal events from the database."""
+        with rx.session() as session:
+            return session.query(ThermalEvent).order_by(
+                ThermalEvent.timestamp.desc()
+            ).limit(50).all()
+
+    @rx.var
+    def thermal_events_count(self) -> int:
+        """Get the count of thermal events."""
+        # This now uses the computed var
+        return len(self.thermal_events)
+
+    @rx.var
+    def has_thermal_events(self) -> bool:
+        """Check if there are any thermal events."""
+        return self.thermal_events_count > 0
     
     # MQTT connection status
     mqtt_connected: bool = False
@@ -146,11 +162,21 @@ class State(rx.State):
             self.process_socket_status(socket_id, payload)
 
     def process_socket_data(self, socket_id: int, data: dict):
-        """Update socket sensor data from MQTT."""
+        """Update socket sensor data from MQTT AND log to DB."""
         socket = self.sockets[socket_id]
         socket.temperature = data.get("temperature", socket.temperature)
         socket.current = data.get("current", socket.current)
         socket.is_on = data.get("is_on", socket.is_on)
+
+        # NEW: Log this time-series data to the database
+        with rx.session() as session:
+            history_entry = SocketDataHistory(
+                socket_id=socket_id,
+                temperature=socket.temperature,
+                current=socket.current
+            )
+            session.add(history_entry)
+            session.commit()
 
     def process_socket_status(self, socket_id: int, message: dict):
         if socket_id not in self.sockets:
@@ -161,7 +187,11 @@ class State(rx.State):
 
         self.sockets[socket_id] = updated_socket
         if new_event:
-            self.thermal_events.append(new_event)
+            self.add_thermal_event(
+                socket_id=new_event.socket_id,
+                event_type=new_event.event_type,
+                message=new_event.message
+            )
 
     def toggle_socket(self, socket_id: int):
         """Send on/off command via MQTT (hardware enforces cooling period)."""
@@ -231,17 +261,15 @@ class State(rx.State):
                 self.cooling_monitor_running = False
 
     def add_thermal_event(self, socket_id: int, event_type: str, message: str = ""):
-        """Log thermal events."""
-        event = ThermalEvent(
-            socket_id=socket_id,
-            event_type=event_type,
-            message=message
-        )
-        self.thermal_events.insert(0, event)  # Add to beginning
-        
-        # Keep only last 50 events
-        if len(self.thermal_events) > 50:
-            self.thermal_events = self.thermal_events[:50]
+        """Log thermal events to the DATABASE."""
+        with rx.session() as session:
+            event = ThermalEvent(
+                socket_id=socket_id,
+                event_type=event_type,
+                message=message
+            )
+            session.add(event)
+            session.commit()
 
     def request_notification_permission(self):
         """Request browser notification permission."""

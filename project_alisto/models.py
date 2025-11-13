@@ -5,6 +5,14 @@ from datetime import datetime
 from typing import Optional
 
 
+# NEW: Model for storing historical sensor readings
+class SocketDataHistory(rx.Model, table=True):
+    id: Optional[int] = rx.Field(default=None, primary_key=True)
+    socket_id: int = rx.Field(index=True)
+    timestamp: datetime = rx.Field(default_factory=datetime.now, index=True)
+    temperature: float = 0.0
+    current: float = 0.0
+
 @dataclass
 class SocketData:
     """Socket sensor data and status from hardware."""
@@ -27,14 +35,9 @@ class ThermalLimits:
 @dataclass
 class ThermalEvent:
     """Thermal event log entry."""
-    socket_id: int
-    event_type: str  # e.g., "THERMAL_SHUTDOWN", "COOLING_STARTED", "COOLING_ENDED"
-    timestamp: datetime = field(default_factory=datetime.now)
+    id: Optional[int] = rx.Field(default=None, primary_key=True)
+    socket_id: int = rx.Field(index=True)
+    event_type: str
+    timestamp: datetime = rx.Field(default_factory=datetime.now)
     message: str = ""
-    formatted_timestamp: str = field(default="")
-    
-    def __post_init__(self):
-        """Format timestamp after initialization."""
-        if not self.formatted_timestamp:
-            self.formatted_timestamp = self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
