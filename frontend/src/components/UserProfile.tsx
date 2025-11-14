@@ -7,6 +7,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
+import { Toaster } from './ui/sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +19,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from './ui/alert-dialog';
-import { toast } from 'sonner@2.0.3';
 
 interface UserProfileProps {
   darkMode: boolean;
@@ -37,11 +37,11 @@ export function UserProfile({ darkMode }: UserProfileProps) {
 
   const handleSave = () => {
     setIsEditing(false);
-    toast.success('Profile updated successfully!');
+    Toaster.success('Profile updated successfully!');
   };
 
   const handleLogout = () => {
-    toast.success('Logged out successfully!');
+    Toaster.success('Logged out successfully!');
     // In a real app, this would clear auth tokens and redirect to login
     setTimeout(() => {
       window.location.reload();
@@ -64,7 +64,7 @@ export function UserProfile({ darkMode }: UserProfileProps) {
                 {profile.name.split(' ').map(n => n[0]).join('')}
               </AvatarFallback>
             </Avatar>
-            
+
             <div className="flex-1 text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
                 <h2 className={`text-2xl ${darkMode ? 'text-white' : ''}`}>{profile.name}</h2>
@@ -228,7 +228,7 @@ export function UserProfile({ darkMode }: UserProfileProps) {
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button 
+                <Button
                   variant="destructive"
                   className="bg-red-600 hover:bg-red-700"
                 >

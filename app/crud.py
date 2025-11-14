@@ -8,6 +8,7 @@ from .config import settings
 
 
 # --- User ---
+# (This section is unchanged)
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
@@ -23,6 +24,7 @@ def create_user(db: Session, user: schemas.UserCreate):
 
 
 # --- Device ---
+# (This section is unchanged)
 
 def register_device(db: Session, device: schemas.DeviceRegister, user_id: int):
     """
@@ -67,6 +69,7 @@ def update_device_heartbeat(db: Session, device: models.Device, status: str = "o
 
 
 # --- Socket ---
+# (This section is unchanged)
 
 def get_device_sockets(db: Session, device_id: str):
     """
@@ -101,21 +104,24 @@ def update_socket_status(db: Session, socket: models.Socket, status: str):
     return socket
 
 
-# --- Device Log (New) ---
+# --- Device Log (MODIFIED) ---
 
 def create_device_log(db: Session, device_id: str, data: schemas.DeviceDataPayload):
     """
-    NEW: Creates a new, unified log entry from an MQTT packet.
+    MODIFIED: Creates a new log entry by mapping the
+    nested payload (data.current_a) to the flat database columns.
     """
     log_entry = models.DeviceLog(
         device_id=device_id,
         ambient_temperature=data.ambient_temperature,
         smoke=data.smoke,
         fire_reading=data.fire_reading,
-        socket1_energy_kwh=data.socket1_energy_kwh,
-        socket2_energy_kwh=data.socket2_energy_kwh,
-        socket3_energy_kwh=data.socket3_energy_kwh,
-        socket4_energy_kwh=data.socket4_energy_kwh
+
+        # Map from nested payload to flat database model
+        socket1_current_a=data.current_a.s1,
+        socket2_current_a=data.current_a.s2,
+        socket3_current_a=data.current_a.s3,
+        socket4_current_a=data.current_a.s4
     )
     db.add(log_entry)
     db.commit()
@@ -124,6 +130,7 @@ def create_device_log(db: Session, device_id: str, data: schemas.DeviceDataPaylo
 
 
 # --- Alerts ---
+# (This section is unchanged)
 
 def create_fire_alert(db: Session, device_id: str, severity: str, data: dict):
     """
@@ -143,76 +150,47 @@ def get_user_alerts(db: Session, user_id: int):
     return db.query(models.FireAlert).join(models.Device).filter(models.Device.owner_id == user_id).all()
 
 
-# --- Reports ---
+# --- Reports (MODIFIED & BROKEN) ---
 
 def get_device_consumption(db: Session, device: models.Device, start_time: datetime, end_time: datetime):
     """
-    NEW: Queries the DeviceLog to sum energy for all 4 sockets.
+    WARNING: This function is now broken. The database no longer stores
+    'energy_kwh' data. It now stores 'current_a'.
+
+    You must update this function to query the new 'socketX_current_a'
+    columns and decide how to report that data. You cannot calculate
+    'total_cost' from Amps (current) alone.
     """
-    # Define the query to sum all energy columns
-    query = db.query(
-        func.sum(models.DeviceLog.socket1_energy_kwh).label("s1_total"),
-        func.sum(models.DeviceLog.socket2_energy_kwh).label("s2_total"),
-        func.sum(models.DeviceLog.socket3_energy_kwh).label("s3_total"),
-        func.sum(models.DeviceLog.socket4_energy_kwh).label("s4_total")
-    ).filter(
-        models.DeviceLog.device_id == device.id,
-        models.DeviceLog.timestamp >= start_time,
-        models.DeviceLog.timestamp <= end_time
+    raise NotImplementedError(
+        "Cannot calculate consumption. Database model changed from 'energy_kwh' to 'current_a'. "
+        "This function must be rewritten."
     )
 
-    # Execute the query
-    result = query.first()
-
-    # Handle case where there is no data (result will be None or contain None)
-    s1_total = result.s1_total or 0.0
-    s2_total = result.s2_total or 0.0
-    s3_total = result.s3_total or 0.0
-    s4_total = result.s4_total or 0.0
-
-    total_kwh = s1_total + s2_total + s3_total + s4_total
-    total_cost = total_kwh * services.get_meralco_rate()
-
-    return schemas.DeviceConsumptionReport(
-        device_id=device.id,
-        period_start=start_time,
-        period_end=end_time,
-        socket1_total_kwh=s1_total,
-        socket2_total_kwh=s2_total,
-        socket3_total_kwh=s3_total,
-        socket4_total_kwh=s4_total,
-        total_kwh=total_kwh,
-        total_cost=total_cost
-    )
+    # --- OLD BROKEN CODE ---
+    # query = db.query(
+    #     func.sum(models.DeviceLog.socket1_energy_kwh).label("s1_total"),
+    #     ...
+    # )
+    # ...
 
 
 def get_user_bill_estimate(db: Session, user: models.User, start_time: datetime):
     """
-    CHANGED: Queries DeviceLog for all user's devices to estimate bill.
+    WARNING: This function is now broken. The database no longer stores
+    'energy_kwh' data. It now stores 'current_a'.
+
+    You cannot estimate a bill from Current (Amps) without Voltage.
+    This function must be rewritten.
     """
-    total_kwh = 0.0
-
-    # Get all device IDs for the user
-    device_ids = [device.id for device in user.devices]
-
-    if not device_ids:
-        return {"estimated_bill": 0.0}
-
-    # Query the sum of all energy columns for all devices of this user
-    query = db.query(
-        func.sum(models.DeviceLog.socket1_energy_kwh +
-                 models.DeviceLog.socket2_energy_kwh +
-                 models.DeviceLog.socket3_energy_kwh +
-                 models.DeviceLog.socket4_energy_kwh)
-    ).filter(
-        models.DeviceLog.device_id.in_(device_ids),
-        models.DeviceLog.timestamp >= start_time
+    raise NotImplementedError(
+        "Cannot estimate bill. Database model changed from 'energy_kwh' to 'current_a'. "
+        "This function must be rewritten."
     )
 
-    result = query.scalar()  # scalar() returns the single value
-
-    if result:
-        total_kwh = result
-
-    monthly_estimate = total_kwh * services.get_meralco_rate()
-    return {"estimated_bill": monthly_estimate}
+    # --- OLD BROKEN CODE ---
+    # query = db.query(
+    #     func.sum(models.DeviceLog.socket1_energy_kwh +
+    #              models.DeviceLog.socket2_energy_kwh +
+    #              ...)
+    # )
+    # ...

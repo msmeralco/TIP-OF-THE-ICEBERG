@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List, Optional
 
@@ -15,8 +15,7 @@ class TokenData(BaseModel):
 
 
 # --- User ---
-# No changes needed. The 'devices' field will just
-# return the new 'Device' schema below.
+# No changes needed
 class UserBase(BaseModel):
     email: str
 
@@ -34,7 +33,14 @@ class User(UserBase):
 
 
 # --- Socket ---
-# This section is heavily modified.
+
+# NEW: This schema matches the nested {"s1": ..., "s2": ...}
+# object in your device payload.
+class SocketCurrents(BaseModel):
+    s1: float
+    s2: float
+    s3: float
+    s4: float
 
 class SocketBase(BaseModel):
     status: str
@@ -42,7 +48,7 @@ class SocketBase(BaseModel):
 
 class Socket(SocketBase):
     """
-    CHANGED: This is now a simple schema.
+    This is now a simple schema.
     It only represents the metadata and state of a socket.
     All sensor/energy data is in the DeviceLog.
     """
@@ -51,17 +57,14 @@ class Socket(SocketBase):
     socket_index: int  # ADDED: To identify as Socket 1, 2, 3, or 4
     last_shutdown: Optional[datetime] = None
 
-    # REMOVED: temperature, current, voltage, power
-
     class Config:
         from_attributes = True
 
 
 class SocketControl(BaseModel):
     """
-    CHANGED: We now control the socket by its 'socket_index' (1-4)
+    We now control the socket by its 'socket_index' (1-4)
     and its parent 'device_id', not its unique 'id'.
-    This is much more intuitive for the ESP32.
     """
     device_id: str
     socket_index: int
@@ -81,7 +84,7 @@ class DeviceRegister(DeviceBase):
 
 class Device(DeviceBase):
     """
-    CHANGED: The 'sockets' list will now contain the
+    The 'sockets' list will now contain the
     new, simplified Socket schema.
     """
     owner_id: int
@@ -97,41 +100,55 @@ class Device(DeviceBase):
 User.model_rebuild()
 
 
-# --- NEW: Device Log Schemas ---
-# Added to represent your unified data packets.
+# --- MODIFIED: Device Log Schemas ---
 
 class DeviceDataPayload(BaseModel):
     """
     This schema validates the incoming MQTT packet from the ESP32.
-    It perfectly matches your non-negotiable data structure.
+    It now matches your device's exact JSON structure.
     """
     # Device-Level Sensors
     ambient_temperature: float
     smoke: float
     fire_reading: float
 
-    # Socket-Level Energy (Per Interval)
-    socket1_energy_kwh: float
-    socket2_energy_kwh: float
-    socket3_energy_kwh: float
-    socket4_energy_kwh: float
+    # This expects the nested "current_a" object
+    current_a: SocketCurrents
+
+    class Config:
+        # This will ignore extra fields like "device_id" and "uptime_ms"
+        # that are in the payload but not needed for validation.
+        extra = "ignore"
 
 
-class DeviceLog(DeviceDataPayload):
+class DeviceLog(BaseModel):
     """
-    This is the response model for sending log history to the user.
-    It includes the database ID and timestamp.
+    This is the *only* DeviceLog schema.
+    It is the response model for sending log history to the user,
+    matching the new flat database structure.
     """
     id: int
     device_id: str
     timestamp: datetime
+    ambient_temperature: float
+    smoke: float
+    fire_reading: float
+
+    # These fields match the new columns in your 'device_logs' DB table
+    socket1_current_a: float
+    socket2_current_a: float
+    socket3_current_a: float
+    socket4_current_a: float
 
     class Config:
         from_attributes = True
 
 
 # --- Reports ---
-# This section is modified for the new data structure.
+# WARNING: These schemas are now *outdated* as they
+# refer to 'kwh' and 'cost', which your device is not
+# providing. Your reporting endpoints will fail until
+# you update them to use the 'current_a' data.
 
 class FireAlert(BaseModel):
     id: int
@@ -161,6 +178,4 @@ class DeviceConsumptionReport(BaseModel):
 
 
 class BillEstimate(BaseModel):
-    # No changes needed. The schema is the same,
-    # but the calculation in crud.py will be different.
     estimated_bill: float

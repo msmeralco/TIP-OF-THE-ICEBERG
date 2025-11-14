@@ -8,8 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Toaster } from './ui/sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { toast } from 'sonner@2.0.3';
 
 const monthlyData = [
   { month: 'Jan', consumption: 650, cost: 7475 },
@@ -48,7 +48,7 @@ export function Billing({ darkMode }: BillingProps) {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState('gcash');
   const [paymentAmount, setPaymentAmount] = useState('');
-  
+
   const currentMonthConsumption = 750;
   const currentMonthCost = currentMonthConsumption * 11.5;
   const estimatedMonthlyBudget = 8000;
@@ -60,7 +60,7 @@ export function Billing({ darkMode }: BillingProps) {
 
   const handlePayment = () => {
     const amount = parseFloat(paymentAmount) || currentMonthCost;
-    toast.success(`Payment of ₱${amount.toFixed(2)} initiated via ${paymentMethods.find(p => p.id === selectedPayment)?.name}!`);
+    Toaster.success(`Payment of ₱${amount.toFixed(2)} initiated via ${paymentMethods.find(p => p.id === selectedPayment)?.name}!`);
     setIsPaymentOpen(false);
     setPaymentAmount('');
   };
@@ -269,18 +269,18 @@ export function Billing({ darkMode }: BillingProps) {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#fed7aa'} />
-                <XAxis 
-                  dataKey="month" 
+                <XAxis
+                  dataKey="month"
                   stroke={darkMode ? '#9ca3af' : '#9a3412'}
                   style={{ fontSize: '12px' }}
                 />
-                <YAxis 
+                <YAxis
                   stroke={darkMode ? '#9ca3af' : '#ea580c'}
                   style={{ fontSize: '12px' }}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: darkMode ? '#1f2937' : '#fff7ed', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: darkMode ? '#1f2937' : '#fff7ed',
                     border: `1px solid ${darkMode ? '#374151' : '#fed7aa'}`,
                     borderRadius: '8px',
                     color: darkMode ? '#fff' : '#000'
@@ -318,9 +318,9 @@ export function Billing({ darkMode }: BillingProps) {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: darkMode ? '#1f2937' : '#fff7ed', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: darkMode ? '#1f2937' : '#fff7ed',
                     border: `1px solid ${darkMode ? '#374151' : '#fed7aa'}`,
                     borderRadius: '8px',
                     color: darkMode ? '#fff' : '#000'
@@ -342,8 +342,8 @@ export function Billing({ darkMode }: BillingProps) {
           <div className="space-y-3">
             {applianceBreakdown.map((appliance, index) => (
               <div key={appliance.name} className={`flex items-center gap-4 p-3 rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gradient-to-r from-orange-50 to-white border-orange-100'}`}>
-                <div 
-                  className="w-3 h-3 rounded-full flex-shrink-0" 
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: COLORS[index % COLORS.length] }}
                 ></div>
                 <div className="flex-1">

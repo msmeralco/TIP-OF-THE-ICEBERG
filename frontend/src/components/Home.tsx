@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Toaster } from './ui/sonner';
 import { PowerStripVisualization } from './PowerStripVisualization';
 import { FireSafetyPanel } from './FireSafetyPanel';
 import { EnergyChart } from './EnergyChart';
-import { toast } from 'sonner@2.0.3';
 
 // Mock data for 4 sockets
 const mockSocketData = [

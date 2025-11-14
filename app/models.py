@@ -72,7 +72,10 @@ class Socket(Base):
 class DeviceLog(Base):
     __tablename__ = "device_logs"
     id = Column(Integer, primary_key=True, index=True)
+
+    # THIS IS THE CRITICAL LINE THAT FIXES THE MAPPER ERROR
     device_id = Column(String, ForeignKey("devices.id"), nullable=False)
+
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
 
     # --- Device-Level Sensors ---
@@ -80,12 +83,14 @@ class DeviceLog(Base):
     smoke = Column(Float)
     fire_reading = Column(Float)
 
-    # --- Socket-Level Energy (Per Interval) ---
-    socket1_energy_kwh = Column(Float)
-    socket2_energy_kwh = Column(Float)
-    socket3_energy_kwh = Column(Float)
-    socket4_energy_kwh = Column(Float)
+    # --- Socket-Level Current (Per Interval) ---
+    # These are the corrected column names to match your MQTT payload schema
+    socket1_current_a = Column(Float)
+    socket2_current_a = Column(Float)
+    socket3_current_a = Column(Float)
+    socket4_current_a = Column(Float)
 
+    # This relationship links it back to the Device class
     device = relationship("Device", back_populates="logs")
 
 

@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Switch } from './ui/switch';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
-import { toast } from 'sonner@2.0.3';
+import { Toaster } from './ui/sonner';
 
 export function Settings({ darkMode }: { darkMode: boolean }) {
   const [settings, setSettings] = useState({
@@ -38,7 +38,7 @@ export function Settings({ darkMode }: { darkMode: boolean }) {
   });
 
   const handleSave = () => {
-    toast.success('Settings saved successfully!');
+    Toaster.success('Settings saved successfully!');
   };
 
   const updateSetting = (key: string, value: any) => {
